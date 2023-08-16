@@ -252,7 +252,7 @@ class ImprovedModel:
 
         return (torch.eye(self.lattice.V) + 0j) + fer_mat2
 
-    def svd_mult(A, B):  # fact_mult
+    def svd_mult(self, A, B):  # fact_mult
         m = torch.svd((torch.diag(A[1])+0j) @ (A[2].mH)
                       @ B[0] @ (torch.diag(B[1])+0j))
         u = A[0] @ m[0]
@@ -297,7 +297,7 @@ class ImprovedModel:
 
         for t in range(self.nt):
             fer_mat2 = self.svd_mult(update_at_t(t, A), fer_mat2)
-            fer_mat2 = self.svd_mult(self.h1_svd, fer_mat2)
+            fer_mat2 = self.svd_mult(self.h2_svd, fer_mat2)
 
         # check the paper and write it compatibly with pytorch
         final_svd = torch.svd(
