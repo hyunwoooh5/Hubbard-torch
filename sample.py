@@ -2,7 +2,7 @@
 
 from models import hubbard
 from mc import metropolis
-from contour import *
+# from contour import *
 import argparse
 import itertools
 import pickle
@@ -16,7 +16,7 @@ import torch
 
 parser = argparse.ArgumentParser(description="Train contour")
 parser.add_argument('model', type=str, help="model filename")
-#parser.add_argument('contour', type=str, help="contour filename")
+# parser.add_argument('contour', type=str, help="contour filename")
 parser.add_argument('-r', '--replica', action='store_true',
                     help="use replica exchange")
 parser.add_argument('-nrep', '--nreplicas', type=int, default=30,
@@ -30,8 +30,8 @@ parser.add_argument('-S', '--skip', default=30, type=int,
 parser.add_argument('--seed', type=int, default=0, help="random seed")
 parser.add_argument('--seed-time', action='store_true',
                     help="seed PRNG with current time")
-#parser.add_argument('--dp', action='store_true',
-#                    help="turn on double precision")                    
+# parser.add_argument('--dp', action='store_true',
+#                    help="turn on double precision")
 parser.add_argument('-T', '--thermalize', default=0,
                     type=int, help="number of MC steps (* d.o.f) to thermalize")
 args = parser.parse_args()
@@ -71,7 +71,7 @@ else:
 '''
 
 
-#@jax.jit
+# @jax.jit
 def Seff(x):
     # j = jax.jacfwd(lambda y: contour.apply(p, y))(x)
     # s, logdet = jnp.linalg.slogdet(j)
@@ -80,11 +80,11 @@ def Seff(x):
     return Seff
 
 
-#@jax.jit
+# @jax.jit
 def observe(x):
-    phase = torch.exp(-1j*Seff(x, p).imag)
+    phase = torch.exp(-1j*Seff(x).imag)
     # phi = contour.apply(p, x)
-    return phase, model.observe(x)
+    return phase  # , model.observe(x)
 
 
 '''
@@ -94,7 +94,7 @@ if args.replica:
 else:
 '''
 chain = metropolis.Chain(lambda x: Seff(
-    x), torch.zeros(V),  delta=1./torch.sqrt(V))
+    x), torch.zeros(V),  delta=1./torch.sqrt(torch.IntTensor([V])))
 
 chain.calibrate()
 chain.step(N=args.thermalize*V)
@@ -105,9 +105,12 @@ try:
         def slc(it): return itertools.islice(it, args.samples)
 
     for x in slc(chain.iter(skip)):
-        phase, obs = observe(x)
-        obsstr = " ".join([str(x) for x in obs])
-        print(f'{phase} {obsstr} {chain.acceptance_rate()}', flush=True)
+        # phase, obs = observe(x)
+        phase = observe(x)
+        # obsstr = " ".join([str(x) for x in obs])
+        # print(
+        #   f'{phase} {obsstr} {chain.acceptance_rate().numpy()[0]}', flush=True)
+        print(f'{phase} {chain.acceptance_rate().numpy()[0]}', flush=True)
 
 except KeyboardInterrupt:
     pass

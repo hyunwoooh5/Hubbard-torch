@@ -34,7 +34,7 @@ class Lattice:
         x1 = (num - t * (self.L ** 2)) // self.L
         x2 = (num - t * (self.L ** 2) - x1 * self.L) % self.L
 
-        return torch.Inttensor([t, x1, x2])
+        return torch.IntTensor([t, x1, x2])
 
     def sites(self):
         # Return a list of all sites.
@@ -170,22 +170,22 @@ class Hopping:
         return hop2
 
     def exp_h1(self):
-        h1 = self.kappa * self.hopping() + self.mu * torch.identity(self.lattice.V) + \
-            0.0 * self.hopping2
+        h1 = self.kappa * self.hopping() + self.mu * torch.eye(self.lattice.V) + \
+            0.0 * self.hopping2()
         h1 = torch.matrix_exp(h1)
-        return h1
+        return h1+0j
 
     def exp_h2(self):
         h2 = self.kappa * self.hopping()
-        h2 = self.kappa * self.hopping() - self.mu * torch.identity(self.lattice.V) + \
-            0.0 * self.hopping2
+        h2 = self.kappa * self.hopping() - self.mu * torch.eye(self.lattice.V) + \
+            0.0 * self.hopping2()
         h2 = torch.matrix_exp(h2)
-        return h2
+        return h2+0j
 
     def exp_h(self):
-        h = self.kappa * self.hopping() + 0.0 * self.hopping2
+        h = self.kappa * self.hopping() + 0.0 * self.hopping2()
         h = torch.matrix_exp(h)
-        return h
+        return h+0j
 
 
 @dataclass

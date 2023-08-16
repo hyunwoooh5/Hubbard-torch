@@ -21,10 +21,11 @@ class Chain:
         Sdiff = Sp - S
         acc = torch.rand(1) < torch.exp(-Sdiff / temperature)
 
-        x, S, accepted = torch.where(acc, torch.Tensor(
-            [xp, Sp, torch.tensor(True)]), torch.Tensor([x, S, torch.tensor(False)]))
+        x = torch.where(acc, xp, x)
+        S = torch.where(acc, Sp, S)
+        accepted = torch.where(acc, torch.tensor(True), torch.tensor(False))
 
-        return x, S, accepted.item()
+        return x, S, accepted
 
     def _action(self, x, delta):
         xp = self._propose(x, delta)
