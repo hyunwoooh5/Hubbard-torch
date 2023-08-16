@@ -19,20 +19,15 @@ class Chain:
 
     def _acceptreject(self, temperature, x, S, xp, Sp):
         Sdiff = Sp - S
-
-        def accept():
-            return xp, Sp, torch.tensor(True)
-
-        def reject():
-            return x, S, torch.tensor(False)
-
         acc = torch.rand(1) < torch.exp(-Sdiff / temperature)
-        x, S, accepted = torch.where(acc, accept(), reject())
+
+        x, S, accepted = torch.where(acc, torch.Tensor(
+            [xp, Sp, torch.tensor(True)]), torch.Tensor([x, S, torch.tensor(False)]))
 
         return x, S, accepted.item()
 
-    def _action(self, key, x, delta):
-        xp = self._propose(key, x, delta)
+    def _action(self, x, delta):
+        xp = self._propose(x, delta)
         Sp = self.action(xp).real
         return xp, Sp
 
