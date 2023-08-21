@@ -70,7 +70,8 @@ class Lattice:
                 t * self.V + 2*(self.L * i + j + self.L//2) + 1)
             return K
 
-        ts, xs, ys = np.indices((self.nt, self.L//2, self.L//2)) # need to find torch version
+        # need to find torch version
+        ts, xs, ys = np.indices((self.nt, self.L//2, self.L//2))
         ts = torch.ravel(ts)
         xs = torch.ravel(xs)
         ys = torch.ravel(ys)
@@ -230,7 +231,7 @@ class ImprovedModel:
         for t in range(self.nt):
             temp_mat = torch.zeros((self.lattice.V, self.lattice.V)) + 0j
 
-            for x in range(self.L):
+            for x in range(self.lattice.V):
                 temp_mat[x, x] = torch.exp(
                     1j * torch.sin(A[t * self.lattice.V + x]))
 
@@ -244,7 +245,7 @@ class ImprovedModel:
         for t in range(self.nt):
             temp_mat = torch.zeros((self.lattice.V, self.lattice.V)) + 0j
 
-            for x in range(self.L):
+            for x in range(self.lattice.V):
                 temp_mat[x, x] = torch.exp(
                     -1j * torch.sin(A[t * self.lattice.V + x]))
 
@@ -299,7 +300,6 @@ class ImprovedModel:
             fer_mat2 = self.svd_mult(update_at_t(t, A), fer_mat2)
             fer_mat2 = self.svd_mult(self.h2_svd, fer_mat2)
 
-        # check the paper and write it compatibly with pytorch
         final_svd = torch.svd(
             fer_mat2[0].mH @ fer_mat2[2] + torch.diag(fer_mat2[1]))
         final_u = fer_mat2[0] @ final_svd[0]
@@ -718,6 +718,7 @@ class ConventionalModel(ImprovedModel):
         s1, logdet1 = jnp.linalg.slogdet(self.Hubbard1(A))
         s2, logdet2 = jnp.linalg.slogdet(self.Hubbard2(A))
         return -self.beta * jnp.sum(jnp.cos(A)) - jnp.log(s1) - logdet1 - jnp.log(s2) - logdet2
+'''
 
 
 @dataclass
@@ -740,137 +741,108 @@ class ImprovedGaussianModel(ImprovedModel):
         self.h1 = self.Hopping.exp_h1()
         self.h2 = self.Hopping.exp_h2()
 
-        self.h1_svd = jnp.linalg.svd(self.h1)
-        self.h2_svd = jnp.linalg.svd(self.h2)
+        self.h1_svd = torch.svd(self.h1)
+        self.h2_svd = torch.svd(self.h2)
 
         self.dof = self.lattice.dof
 
         self.periodic_contour = False
 
     def Hubbard1(self, A):
-        fer_mat1 = jnp.eye(self.lattice.V) + 0j
+        fer_mat1 = torch.eye(self.lattice.V) + 0j
 
-        def update_at_tx(t, x, H):
-            H = H.at[x, x].add(
-                jnp.exp(1j * A[t * self.lattice.V + x]))
-            return H
+        for t in range(self.nt):
+            temp_mat = torch.zeros((self.lattice.V, self.lattice.V)) + 0j
 
-        def update_at_t(t):
-            some = jax.tree_util.Partial(update_at_tx, t)
-            temp_mat = jnp.zeros((self.lattice.V, self.lattice.V)) + 0j
-            temp_mat = jax.lax.fori_loop(0, self.lattice.V, some, temp_mat)
-            return self.h1 @ temp_mat
+            for x in range(self.L):
+                temp_mat[x, x] = torch.exp(1j * A[t * self.lattice.V + x])
 
-        def multi(t, fer_mat):
-            return update_at_t(t) @ fer_mat
+            fer_mat1 = self.h1 @ temp_mat @ fer_mat1
 
-        fer_mat1 = jax.lax.fori_loop(0, self.lattice.nt, multi, fer_mat1)
-
-        return jnp.eye(self.lattice.V) + fer_mat1
+        return (torch.eye(self.lattice.V)+0j) + fer_mat1
 
     def Hubbard2(self, A):
-        fer_mat2 = jnp.eye(self.lattice.V) + 0j
+        fer_mat2 = torch.eye(self.lattice.V)+0j
 
-        def update_at_tx(t, x, H):
-            H = H.at[x, x].add(
-                jnp.exp(-1j * A[t * self.lattice.V + x]))
-            return H
+        for t in range(self.nt):
+            temp_mat = torch.zeros((self.lattice.V, self.lattice.V)) + 0j
 
-        def update_at_t(t):
-            some = jax.tree_util.Partial(update_at_tx, t)
-            temp_mat = jnp.zeros((self.lattice.V, self.lattice.V)) + 0j
-            temp_mat = jax.lax.fori_loop(0, self.lattice.V, some, temp_mat)
-            return self.h2 @ temp_mat
+            for x in range(self.L):
+                temp_mat[x, x] = torch.exp(-1j * A[t * self.lattice.V + x])
 
-        def multi(t, fer_mat):
-            return update_at_t(t) @ fer_mat
+            fer_mat2 = self.h2 @ temp_mat @ fer_mat2
 
-        fer_mat2 = jax.lax.fori_loop(0, self.lattice.nt, multi, fer_mat2)
-
-        return jnp.eye(self.lattice.V) + fer_mat2
+        return (torch.eye(self.lattice.V) + 0j) + fer_mat2
 
     def Hubbard1_svd(self, A):
-        fer_mat1 = (jnp.eye(self.lattice.V) + 0j,
-                    jnp.ones(self.lattice.V), jnp.eye(self.lattice.V)+0j)
+        fer_mat1 = (torch.eye(self.lattice.V)+0j,
+                    torch.ones(self.lattice.V), torch.eye(self.lattice.V)+0j)
 
-        def update_at_tx(t, x, H):  # don't touch
-            H = H.at[x, x].add(
-                jnp.exp(1j * A[t * self.lattice.V + x]))
-            return H
+        def update_at_t(t, A):
+            fer_mat = torch.eye(self.lattice.V)+0j
+            for x in range(self.lattice.V):
+                fer_mat[x, x] = torch.exp(1j * A[t * self.lattice.V + x])
+            return torch.svd(fer_mat)
 
-        def update_at_t(t):  # don't touch. generate B_t
-            some = jax.tree_util.Partial(update_at_tx, t)
-            temp_mat = jnp.zeros((self.lattice.V, self.lattice.V)) + 0j
-            temp_mat = jax.lax.fori_loop(0, self.lattice.V, some, temp_mat)
-            return jnp.linalg.svd(temp_mat)
+        for t in range(self.nt):
+            fer_mat1 = self.svd_mult(update_at_t(t, A), fer_mat1)
+            fer_mat1 = self.svd_mult(self.h1_svd, fer_mat1)
 
-        def multi(t, fer_mat):
-            m1 = self.svd_mult(update_at_t(t), fer_mat)
-            return self.svd_mult(self.h1_svd, m1)
-
-        fer_mat1 = jax.lax.fori_loop(0, self.lattice.nt, multi, fer_mat1)
-
-        final_svd = jnp.linalg.svd(
-            fer_mat1[0].conj().T @ fer_mat1[2].conj().T + jnp.diag(fer_mat1[1]))
+        final_svd = torch.svd(
+            fer_mat1[0].mH @ fer_mat1[2] + torch.diag(fer_mat1[1]))
         final_u = fer_mat1[0] @ final_svd[0]
         final_d = final_svd[1]
-        final_v = final_svd[2] @ fer_mat1[2]
+        final_v = fer_mat1[2] @ final_svd[2]
 
         return final_u, final_d, final_v
 
     def Hubbard2_svd(self, A):
-        fer_mat2 = (jnp.eye(self.lattice.V) + 0j,
-                    jnp.ones(self.lattice.V), jnp.eye(self.lattice.V)+0j)
+        fer_mat2 = (torch.eye(self.lattice.V)+0j,
+                    torch.ones(self.lattice.V), torch.eye(self.lattice.V)+0j)
 
-        def update_at_tx(t, x, H):  # don't touch
-            H = H.at[x, x].add(
-                jnp.exp(-1j * A[t * self.lattice.V + x]))
-            return H
+        def update_at_t(t, A):
+            fer_mat = torch.eye(self.lattice.V)+0j
+            for x in range(self.lattice.V):
+                fer_mat[x, x] = torch.exp(-1j * A[t * self.lattice.V + x])
+            return torch.svd(fer_mat)
 
-        def update_at_t(t):  # don't touch. generate B_t
-            some = jax.tree_util.Partial(update_at_tx, t)
-            temp_mat = jnp.zeros((self.lattice.V, self.lattice.V)) + 0j
-            temp_mat = jax.lax.fori_loop(0, self.lattice.V, some, temp_mat)
-            return jnp.linalg.svd(temp_mat)
+        for t in range(self.nt):
+            fer_mat2 = self.svd_mult(update_at_t(t, A), fer_mat2)
+            fer_mat2 = self.svd_mult(self.h2_svd, fer_mat2)
 
-        def multi(t, fer_mat):
-            m1 = self.svd_mult(update_at_t(t), fer_mat)
-            return self.svd_mult(self.h2_svd, m1)
-
-        fer_mat2 = jax.lax.fori_loop(0, self.lattice.nt, multi, fer_mat2)
-
-        final_svd = jnp.linalg.svd(
-            fer_mat2[0].conj().T @ fer_mat2[2].conj().T + jnp.diag(fer_mat2[1]))
+        final_svd = torch.svd(
+            fer_mat2[0].mH @ fer_mat2[2] + torch.diag(fer_mat2[1]))
         final_u = fer_mat2[0] @ final_svd[0]
         final_d = final_svd[1]
-        final_v = final_svd[2] @ fer_mat2[2]
+        final_v = fer_mat2[2] @ final_svd[2]
 
         return final_u, final_d, final_v
 
     def action_naive(self, A):
-        s1, logdet1 = jnp.linalg.slogdet(self.Hubbard1(A))
-        s2, logdet2 = jnp.linalg.slogdet(self.Hubbard2(A))
-        return jnp.sum(A ** 2) / (2 * self.u) - jnp.log(s1) - logdet1 - jnp.log(s2) - logdet2
+        s1, logdet1 = torch.linalg.slogdet(self.Hubbard1(A))
+        s2, logdet2 = torch.linalg.slogdet(self.Hubbard2(A))
+        return 1.0 / (2 * self.u) * A @ A - torch.log(s1) - logdet1 - torch.log(s2) - logdet2
 
     def action_svd(self, A):
         u1, d1, v1 = self.Hubbard1_svd(A)
-        u1_s, u1_logdet = jnp.linalg.slogdet(u1)
-        d1_logdet = jnp.sum(jnp.log(d1))
-        v1_s, v1_logdet = jnp.linalg.slogdet(v1)
+        u1_s, u1_logdet = torch.linalg.slogdet(u1)
+        d1_logdet = torch.sum(torch.log(d1))
+        v1_s, v1_logdet = torch.linalg.slogdet(v1.mH)
         logdet1 = u1_s + u1_logdet + d1_logdet + v1_s + v1_logdet
 
         u2, d2, v2 = self.Hubbard2_svd(A)
-        u2_s, u2_logdet = jnp.linalg.slogdet(u2)
-        d2_logdet = jnp.sum(jnp.log(d2))
-        v2_s, v2_logdet = jnp.linalg.slogdet(v2)
+        u2_s, u2_logdet = torch.linalg.slogdet(u2)
+        d2_logdet = torch.sum(torch.log(d2))
+        v2_s, v2_logdet = torch.linalg.slogdet(v2.mH)
         logdet2 = u2_s + u2_logdet + d2_logdet + v2_s + v2_logdet
 
-        return jnp.sum(A ** 2) / (2 * self.u) - logdet1 - logdet2
+        return 1.0 / (2 * self.u) * A @ A - logdet1 - logdet2
 
     def action(self, A):
         return self.action_naive(A)
 
 
+'''
 @dataclass
 class ImprovedGaussianModel2(ImprovedModel):
     L: int
