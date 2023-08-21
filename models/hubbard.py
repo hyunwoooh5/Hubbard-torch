@@ -1392,6 +1392,14 @@ class ImprovedGaussianSpinModel(ImprovedModel):
 
         return torch.eye(self.lattice.V) + fer_mat2
 
+    def svd_mult(self, A, B):  # fact_mult
+        m = torch.svd((torch.diag(A[1])) @ (A[2].T)
+                      @ B[0] @ (torch.diag(B[1])))
+        u = A[0] @ m[0]
+        s = m[1]
+        v = B[2] @ m[2]
+        return u, s, v
+
     def Hubbard1_svd(self, A):
         fer_mat1 = (torch.eye(self.lattice.V),
                     torch.ones(self.lattice.V), torch.eye(self.lattice.V))
@@ -1407,7 +1415,7 @@ class ImprovedGaussianSpinModel(ImprovedModel):
             fer_mat1 = self.svd_mult(self.h1_svd, fer_mat1)
 
         final_svd = torch.svd(
-            fer_mat1[0].mH @ fer_mat1[2] + torch.diag(fer_mat1[1]))
+            fer_mat1[0].T @ fer_mat1[2] + torch.diag(fer_mat1[1]))
         final_u = fer_mat1[0] @ final_svd[0]
         final_d = final_svd[1]
         final_v = fer_mat1[2] @ final_svd[2]
@@ -1429,7 +1437,7 @@ class ImprovedGaussianSpinModel(ImprovedModel):
             fer_mat2 = self.svd_mult(self.h2_svd, fer_mat2)
 
         final_svd = torch.svd(
-            fer_mat2[0].mH @ fer_mat2[2] + torch.diag(fer_mat2[1]))
+            fer_mat2[0].T @ fer_mat2[2] + torch.diag(fer_mat2[1]))
         final_u = fer_mat2[0] @ final_svd[0]
         final_d = final_svd[1]
         final_v = fer_mat2[2] @ final_svd[2]
@@ -1445,14 +1453,14 @@ class ImprovedGaussianSpinModel(ImprovedModel):
         u1, d1, v1 = self.Hubbard1_svd(A)
         u1_s, u1_logdet = torch.linalg.slogdet(u1)
         d1_logdet = torch.sum(torch.log(d1))
-        v1_s, v1_logdet = torch.linalg.slogdet(v1.mH)
+        v1_s, v1_logdet = torch.linalg.slogdet(v1.T)
         logdet1 = torch.log(u1_s) + u1_logdet + d1_logdet + \
             torch.log(v1_s) + v1_logdet
 
         u2, d2, v2 = self.Hubbard2_svd(A)
         u2_s, u2_logdet = torch.linalg.slogdet(u2)
         d2_logdet = torch.sum(torch.log(d2))
-        v2_s, v2_logdet = torch.linalg.slogdet(v2.mH)
+        v2_s, v2_logdet = torch.linalg.slogdet(v2.T)
         logdet2 = torch.log(u2_s) + u2_logdet + d2_logdet + \
             torch.log(v2_s) + v2_logdet
 
