@@ -40,13 +40,13 @@ class Contour(nn.Module):
     def __init__(self, volume, features):
         super(Contour, self).__init__()
         self.volume = volume
-        self.mlp_u = MLP(features)
+        # self.mlp_u = MLP(features)
         self.mlp_v = MLP(features)
         # self.dense_y_r = nn.Linear(features[-1], volume)
         self.dense_y_i = nn.Linear(features[-1], volume)
 
     def forward(self, x):
-        u = self.mlp_u(x)
+        # u = self.mlp_u(x)
         v = self.mlp_v(x)
         # y_r = self.dense_y_r(u)
         y_i = self.dense_y_i(v)
@@ -127,27 +127,7 @@ if __name__ == '__main__':
     skip = args.skip
     if args.skip == 30:
         skip = V
-    '''
-    if args.affine or args.nnaffine:
-        even_indices = model.lattice.even()
-        odd_indices = model.lattice.odd()
 
-        @jax.jit
-        def Seff(x, p):
-            j = jax.jacfwd(lambda y: contour.apply(p, y))(x)
-            logdet = jnp.log(j.diagonal().prod())
-            xt = contour.apply(p, x)
-            Seff = model.action(xt) - logdet
-            return Seff
-    '''
-
-    def Seff(x, contour):
-        j = torch.autograd.functional.jacobian(
-            lambda y: contour(y), x)  # need to check
-        s, logdet = torch.linalg.slogdet(j)
-        xt = contour(x)  # need to check
-        Seff = model.action(xt) - torch.log(s) - logdet
-        return Seff
     '''
     if args.nnaffine:
         indftn = model.lattice.nearestneighbor
@@ -174,7 +154,7 @@ if __name__ == '__main__':
             contour = pickle.load(f)
         loaded = True
     if not loaded:
-        contour = Contour(V, [args.width*V]*args.layers)
+        contour = Contour(V, [V]+[args.width*V]*args.layers)
         '''
         if model.periodic_contour:
             if args.affine:
@@ -193,6 +173,27 @@ if __name__ == '__main__':
             else:
                 contour = Contour(V, [args.width*V]*args.layers)
         '''
+    
+    '''
+    if args.affine or args.nnaffine:
+        even_indices = model.lattice.even()
+        odd_indices = model.lattice.odd()
+
+        @jax.jit
+        def Seff(x, p):
+            j = jax.jacfwd(lambda y: contour.apply(p, y))(x)
+            logdet = jnp.log(j.diagonal().prod())
+            xt = contour.apply(p, x)
+            Seff = model.action(xt) - logdet
+            return Seff
+    '''
+
+    def Seff(x):
+        j = torch.autograd.functional.jacobian(contour, x)  # need to check
+        s, logdet = torch.linalg.slogdet(j)
+        xt = contour(x)  # need to check
+        Seff = model.action(xt) - torch.log(s) - logdet
+        return Seff
 
     # setup metropolis
     chain = metropolis.Chain(lambda x: Seff(
@@ -206,7 +207,7 @@ if __name__ == '__main__':
             x, contour_params).real, jnp.zeros(V), chain_key, delta=1./jnp.sqrt(V))
     '''
     # cost function
-    Seff_grad = torch.autograd.grad(lambda y, p: -Seff(y, p).real, argnums=1)
+    # Seff_grad = torch.autograd.grad(lambda y, p: -Seff(y, p).real, argnums=1)
 
     '''
     if args.schedule:
@@ -280,11 +281,10 @@ if __name__ == '__main__':
                 grads = []
                 for l in range(args.nstochastic):
                     chain.step(N=skip)
-                    grads.append(Seff_grad(chain.x, contour))
+                    grads.append(Seff(chain.x).backward())
 
-                grad = torch.mean(torch.stack(grads))
-                loss = -grad
-                loss.backward()
+                grad = torch.mean(torch.stack(grads), axis=0)
+                grad.backward()
                 opt.step()
             '''
             # tracking the size of gradient
