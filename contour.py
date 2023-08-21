@@ -196,8 +196,7 @@ if __name__ == '__main__':
         return Seff
 
     # setup metropolis
-    chain = metropolis.Chain(lambda x: Seff(
-        x, contour).real, torch.zeros(V),  delta=1./torch.sqrt(torch.IntTensor([V])))
+    chain = metropolis.Chain(lambda x: Seff(x).real, torch.zeros(V),  delta=1./torch.sqrt(torch.IntTensor([V])))
     '''
     if args.replica:
         chain = replica.ReplicaExchange(lambda x: Seff(x, contour_params), jnp.zeros(
@@ -269,7 +268,7 @@ if __name__ == '__main__':
         return m, np.std(ms.real) + 1j*np.std(ms.imag)
 
     steps = int(10000 / args.nstochastic)
-    weight = eval(args.weight)
+    #weight = eval(args.weight)
 
     chain.calibrate()
     chain.step(N=args.thermalize*V)
@@ -281,7 +280,7 @@ if __name__ == '__main__':
                 grads = []
                 for l in range(args.nstochastic):
                     chain.step(N=skip)
-                    grads.append(Seff(chain.x).backward())
+                    grads.append(Seff(chain.x).real)
 
                 grad = torch.mean(torch.stack(grads), axis=0)
                 grad.backward()
@@ -304,12 +303,15 @@ if __name__ == '__main__':
             # measurement once in a while
             phases = []
             acts = []
-            for i in range(len(phases)):
+            for i in range(100):
                 chain.step(N=skip)
-                acts.append(Seff(chain.x, contour))
+                acts.append(Seff(chain.x))
                 phases.append(torch.exp(-1j*acts[i].imag))
+            
+            phases = torch.stack(phases)
+            acts = torch.stack(acts)
 
-            print(f'{np.mean(phases).real} {np.abs(np.mean(phases))} {bootstrap(np.array(phases))} ({np.mean(np.abs(chain.x))} {np.real(np.mean(acts))} {np.mean(acts)} {chain.acceptance_rate()})', flush=True)
+            print(f'{torch.mean(phases).real} {np.abs(np.mean(phases))} {bootstrap(phases.detach().numpy())} ({np.mean(np.abs(chain.x))} {np.real(np.mean(acts))} {np.mean(acts)} {chain.acceptance_rate()})', flush=True)
 
             save()
 
