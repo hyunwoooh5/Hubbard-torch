@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from models import hubbard
 from mc import metropolis
 import pickle
