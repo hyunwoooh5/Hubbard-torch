@@ -320,14 +320,14 @@ class ImprovedModel:
         d1_logdet = torch.sum(torch.log(d1))
         v1_s, v1_logdet = torch.linalg.slogdet(v1.mH)
         logdet1 = torch.log(u1_s) + u1_logdet + d1_logdet + \
-                            torch.log(v1_s) + v1_logdet
+            torch.log(v1_s) + v1_logdet
 
         u2, d2, v2 = self.Hubbard2_svd(A)
         u2_s, u2_logdet = torch.linalg.slogdet(u2)
         d2_logdet = torch.sum(torch.log(d2))
         v2_s, v2_logdet = torch.linalg.slogdet(v2.mH)
         logdet2 = torch.log(u2_s) + u2_logdet + d2_logdet + \
-                            torch.log(v2_s) + v2_logdet
+            torch.log(v2_s) + v2_logdet
 
         return -self.beta * torch.sum(torch.cos(A)) - logdet1 - logdet2
 
@@ -834,14 +834,14 @@ class ImprovedGaussianModel(ImprovedModel):
         d1_logdet = torch.sum(torch.log(d1))
         v1_s, v1_logdet = torch.linalg.slogdet(v1.mH)
         logdet1 = torch.log(u1_s) + u1_logdet + d1_logdet + \
-                            torch.log(v1_s) + v1_logdet
+            torch.log(v1_s) + v1_logdet
 
         u2, d2, v2 = self.Hubbard2_svd(A)
         u2_s, u2_logdet = torch.linalg.slogdet(u2)
         d2_logdet = torch.sum(torch.log(d2))
         v2_s, v2_logdet = torch.linalg.slogdet(v2.mH)
         logdet2 = torch.log(u2_s) + u2_logdet + d2_logdet + \
-                            torch.log(v2_s) + v2_logdet
+            torch.log(v2_s) + v2_logdet
 
         return 1.0 / (2 * self.u) * A @ A - logdet1 - logdet2
 
@@ -1352,8 +1352,8 @@ class ImprovedGaussianSpinModel(ImprovedModel):
         self.h1 = self.kappa * self.hopping
         self.h2 = self.kappa * self.hopping
         for i in range(self.lattice.L**2):
-            self.h1 = self.h1.at[i, i].add(self.mu-self.u)
-            self.h2 = self.h2.at[i, i].add(-self.mu-self.u)
+            self.h1[i, i] = self.mu-self.u
+            self.h2[i, i] = -self.mu-self.u
         self.h1 = torch.matrix.exp_(self.h1)
         self.h2 = torch.matrix.exp_(self.h2)
 
@@ -1447,19 +1447,20 @@ class ImprovedGaussianSpinModel(ImprovedModel):
         d1_logdet = torch.sum(torch.log(d1))
         v1_s, v1_logdet = torch.linalg.slogdet(v1.mH)
         logdet1 = torch.log(u1_s) + u1_logdet + d1_logdet + \
-                            torch.log(v1_s) + v1_logdet
+            torch.log(v1_s) + v1_logdet
 
         u2, d2, v2 = self.Hubbard2_svd(A)
         u2_s, u2_logdet = torch.linalg.slogdet(u2)
         d2_logdet = torch.sum(torch.log(d2))
         v2_s, v2_logdet = torch.linalg.slogdet(v2.mH)
         logdet2 = torch.log(u2_s) + u2_logdet + d2_logdet + \
-                            torch.log(v2_s) + v2_logdet
+            torch.log(v2_s) + v2_logdet
 
         return 1.0 / (2 * self.u) * A @ A - logdet1 - logdet2
 
     def action(self, A):
         return self.action_naive(A)
+
 
 '''
 @dataclass
