@@ -1365,39 +1365,39 @@ class ImprovedGaussianSpinModel(ImprovedModel):
         self.periodic_contour = False
 
     def Hubbard1(self, A):
-        fer_mat1 = torch.eye(self.lattice.V, dtype=torch.cfloat)
+        fer_mat1 = torch.eye(self.lattice.V)
 
         for t in range(self.nt):
             temp_mat = torch.zeros(
-                (self.lattice.V, self.lattice.V), dtype=torch.cfloat)
+                (self.lattice.V, self.lattice.V))
 
             for x in range(self.lattice.V):
                 temp_mat[x, x] = torch.exp(A[t * self.lattice.V + x])
 
             fer_mat1 = self.h1 @ temp_mat @ fer_mat1
 
-        return torch.eye(self.lattice.V, dtype=torch.cfloat) + fer_mat1
+        return torch.eye(self.lattice.V) + fer_mat1
 
     def Hubbard2(self, A):
-        fer_mat2 = torch.eye(self.lattice.V, dtype=torch.cfloat)
+        fer_mat2 = torch.eye(self.lattice.V)
 
         for t in range(self.nt):
             temp_mat = torch.zeros(
-                (self.lattice.V, self.lattice.V), dtype=torch.cfloat)
+                (self.lattice.V, self.lattice.V))
 
             for x in range(self.lattice.V):
                 temp_mat[x, x] = torch.exp(A[t * self.lattice.V + x])
 
             fer_mat2 = self.h2 @ temp_mat @ fer_mat2
 
-        return torch.eye(self.lattice.V, dtype=torch.cfloat) + fer_mat2
+        return torch.eye(self.lattice.V) + fer_mat2
 
     def Hubbard1_svd(self, A):
-        fer_mat1 = (torch.eye(self.lattice.V, dtype=torch.cfloat),
-                    torch.ones(self.lattice.V, dtype=torch.cfloat), torch.eye(self.lattice.V, dtype=torch.cfloat))
+        fer_mat1 = (torch.eye(self.lattice.V),
+                    torch.ones(self.lattice.V), torch.eye(self.lattice.V))
 
         def update_at_t(t, A):
-            fer_mat = torch.eye(self.lattice.V, dtype=torch.cfloat)
+            fer_mat = torch.eye(self.lattice.V)
             for x in range(self.lattice.V):
                 fer_mat[x, x] = torch.exp(A[t * self.lattice.V + x])
             return torch.svd(fer_mat)
@@ -1415,11 +1415,11 @@ class ImprovedGaussianSpinModel(ImprovedModel):
         return final_u, final_d, final_v
 
     def Hubbard2_svd(self, A):
-        fer_mat2 = (torch.eye(self.lattice.V, dtype=torch.cfloat),
-                    torch.ones(self.lattice.V, dtype=torch.cfloat), torch.eye(self.lattice.V, dtype=torch.cfloat))
+        fer_mat2 = (torch.eye(self.lattice.V),
+                    torch.ones(self.lattice.V), torch.eye(self.lattice.V))
 
         def update_at_t(t, A):
-            fer_mat = torch.eye(self.lattice.V, dtype=torch.cfloat)
+            fer_mat = torch.eye(self.lattice.V)
             for x in range(self.lattice.V):
                 fer_mat[x, x] = torch.exp(A[t * self.lattice.V + x])
             return torch.svd(fer_mat)
