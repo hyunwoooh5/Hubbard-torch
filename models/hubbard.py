@@ -6,10 +6,9 @@ import scipy.special as special
 from scipy.optimize import fsolve
 
 import torch
-
-import jax
-import jax.numpy as jnp
 import numpy as np
+# import jax
+# import jax.numpy as jnp
 
 
 @dataclass  # 2D model, LxL lattice
@@ -226,10 +225,11 @@ class ImprovedModel:
         return float(betas[0])
 
     def Hubbard1(self, A):
-        fer_mat1 = torch.eye(self.lattice.V) + 0j
+        fer_mat1 = torch.eye(self.lattice.V, dtype=torch.cfloat)
 
         for t in range(self.nt):
-            temp_mat = torch.zeros((self.lattice.V, self.lattice.V)) + 0j
+            temp_mat = torch.zeros(
+                (self.lattice.V, self.lattice.V), dtype=torch.cfloat)
 
             for x in range(self.lattice.V):
                 temp_mat[x, x] = torch.exp(
@@ -237,13 +237,14 @@ class ImprovedModel:
 
             fer_mat1 = self.h1 @ temp_mat @ fer_mat1
 
-        return (torch.eye(self.lattice.V)+0j) + fer_mat1
+        return torch.eye(self.lattice.V, dtype=torch.cfloat) + fer_mat1
 
     def Hubbard2(self, A):
-        fer_mat2 = torch.eye(self.lattice.V)+0j
+        fer_mat2 = torch.eye(self.lattice.V, dtype=torch.cfloat)
 
         for t in range(self.nt):
-            temp_mat = torch.zeros((self.lattice.V, self.lattice.V)) + 0j
+            temp_mat = torch.zeros(
+                (self.lattice.V, self.lattice.V), dtype=torch.cfloat)
 
             for x in range(self.lattice.V):
                 temp_mat[x, x] = torch.exp(
@@ -251,7 +252,7 @@ class ImprovedModel:
 
             fer_mat2 = self.h2 @ temp_mat @ fer_mat2
 
-        return (torch.eye(self.lattice.V) + 0j) + fer_mat2
+        return torch.eye(self.lattice.V, dtype=torch.cfloat) + fer_mat2
 
     def svd_mult(self, A, B):  # fact_mult
         m = torch.svd((torch.diag(A[1])+0j) @ (A[2].mH)
@@ -262,11 +263,11 @@ class ImprovedModel:
         return u, s, v
 
     def Hubbard1_svd(self, A):
-        fer_mat1 = (torch.eye(self.lattice.V)+0j,
-                    torch.ones(self.lattice.V), torch.eye(self.lattice.V)+0j)
+        fer_mat1 = (torch.eye(self.lattice.V, dtype=torch.cfloat),
+                    torch.ones(self.lattice.V), torch.eye(self.lattice.V, dtype=torch.cfloat))
 
         def update_at_t(t, A):
-            fer_mat = torch.eye(self.lattice.V)+0j
+            fer_mat = torch.eye(self.lattice.V, dtype=torch.cfloat)
             for x in range(self.lattice.V):
                 fer_mat[x, x] = torch.exp(
                     1j * torch.sin(A[t * self.lattice.V + x]))
@@ -286,11 +287,11 @@ class ImprovedModel:
         return final_u, final_d, final_v
 
     def Hubbard2_svd(self, A):
-        fer_mat2 = (torch.eye(self.lattice.V)+0j,
-                    torch.ones(self.lattice.V), torch.eye(self.lattice.V)+0j)
+        fer_mat2 = (torch.eye(self.lattice.V, dtype=torch.cfloat),
+                    torch.ones(self.lattice.V), torch.eye(self.lattice.V, dtype=torch.cfloat))
 
         def update_at_t(t, A):
-            fer_mat = torch.eye(self.lattice.V)+0j
+            fer_mat = torch.eye(self.lattice.V, dtype=torch.cfloat)
             for x in range(self.lattice.V):
                 fer_mat[x, x] = torch.exp(
                     -1j * torch.sin(A[t * self.lattice.V + x]))
@@ -318,13 +319,13 @@ class ImprovedModel:
         u1_s, u1_logdet = torch.linalg.slogdet(u1)
         d1_logdet = torch.sum(torch.log(d1))
         v1_s, v1_logdet = torch.linalg.slogdet(v1.mH)
-        logdet1 = u1_s + u1_logdet + d1_logdet + v1_s + v1_logdet
+        logdet1 = torch.log(u1_s) + u1_logdet + d1_logdet + torch.log(v1_s) + v1_logdet
 
         u2, d2, v2 = self.Hubbard2_svd(A)
         u2_s, u2_logdet = torch.linalg.slogdet(u2)
         d2_logdet = torch.sum(torch.log(d2))
         v2_s, v2_logdet = torch.linalg.slogdet(v2.mH)
-        logdet2 = u2_s + u2_logdet + d2_logdet + v2_s + v2_logdet
+        logdet2 = torch.log(u2_s) + u2_logdet + d2_logdet + torch.log(v2_s) + v2_logdet
 
         return -self.beta * torch.sum(torch.cos(A)) - logdet1 - logdet2
 
@@ -741,45 +742,47 @@ class ImprovedGaussianModel(ImprovedModel):
         self.h1 = self.Hopping.exp_h1()
         self.h2 = self.Hopping.exp_h2()
 
-        self.h1_svd = torch.svd(self.h1)
-        self.h2_svd = torch.svd(self.h2)
+        self.h1_svd = torch.svd(self.h1+0j)
+        self.h2_svd = torch.svd(self.h2+0j)
 
         self.dof = self.lattice.dof
 
         self.periodic_contour = False
 
     def Hubbard1(self, A):
-        fer_mat1 = torch.eye(self.lattice.V) + 0j
+        fer_mat1 = torch.eye(self.lattice.V, dtype=torch.cfloat)
 
         for t in range(self.nt):
-            temp_mat = torch.zeros((self.lattice.V, self.lattice.V)) + 0j
+            temp_mat = torch.zeros(
+                (self.lattice.V, self.lattice.V), dtype=torch.cfloat)
 
-            for x in range(self.L):
+            for x in range(self.lattice.V):
                 temp_mat[x, x] = torch.exp(1j * A[t * self.lattice.V + x])
 
             fer_mat1 = self.h1 @ temp_mat @ fer_mat1
 
-        return (torch.eye(self.lattice.V)+0j) + fer_mat1
+        return torch.eye(self.lattice.V, dtype=torch.cfloat) + fer_mat1
 
     def Hubbard2(self, A):
-        fer_mat2 = torch.eye(self.lattice.V)+0j
+        fer_mat2 = torch.eye(self.lattice.V, dtype=torch.cfloat)
 
         for t in range(self.nt):
-            temp_mat = torch.zeros((self.lattice.V, self.lattice.V)) + 0j
+            temp_mat = torch.zeros(
+                (self.lattice.V, self.lattice.V), dtype=torch.cfloat)
 
-            for x in range(self.L):
+            for x in range(self.lattice.V):
                 temp_mat[x, x] = torch.exp(-1j * A[t * self.lattice.V + x])
 
             fer_mat2 = self.h2 @ temp_mat @ fer_mat2
 
-        return (torch.eye(self.lattice.V) + 0j) + fer_mat2
+        return torch.eye(self.lattice.V, dtype=torch.cfloat) + fer_mat2
 
     def Hubbard1_svd(self, A):
-        fer_mat1 = (torch.eye(self.lattice.V)+0j,
-                    torch.ones(self.lattice.V), torch.eye(self.lattice.V)+0j)
+        fer_mat1 = (torch.eye(self.lattice.V, dtype=torch.cfloat),
+                    torch.ones(self.lattice.V, dtype=torch.cfloat), torch.eye(self.lattice.V, dtype=torch.cfloat))
 
         def update_at_t(t, A):
-            fer_mat = torch.eye(self.lattice.V)+0j
+            fer_mat = torch.eye(self.lattice.V, dtype=torch.cfloat)
             for x in range(self.lattice.V):
                 fer_mat[x, x] = torch.exp(1j * A[t * self.lattice.V + x])
             return torch.svd(fer_mat)
@@ -797,11 +800,11 @@ class ImprovedGaussianModel(ImprovedModel):
         return final_u, final_d, final_v
 
     def Hubbard2_svd(self, A):
-        fer_mat2 = (torch.eye(self.lattice.V)+0j,
-                    torch.ones(self.lattice.V), torch.eye(self.lattice.V)+0j)
+        fer_mat2 = (torch.eye(self.lattice.V, dtype=torch.cfloat),
+                    torch.ones(self.lattice.V, dtype=torch.cfloat), torch.eye(self.lattice.V, dtype=torch.cfloat))
 
         def update_at_t(t, A):
-            fer_mat = torch.eye(self.lattice.V)+0j
+            fer_mat = torch.eye(self.lattice.V, dtype=torch.cfloat)
             for x in range(self.lattice.V):
                 fer_mat[x, x] = torch.exp(-1j * A[t * self.lattice.V + x])
             return torch.svd(fer_mat)
@@ -828,13 +831,13 @@ class ImprovedGaussianModel(ImprovedModel):
         u1_s, u1_logdet = torch.linalg.slogdet(u1)
         d1_logdet = torch.sum(torch.log(d1))
         v1_s, v1_logdet = torch.linalg.slogdet(v1.mH)
-        logdet1 = u1_s + u1_logdet + d1_logdet + v1_s + v1_logdet
+        logdet1 = torch.log(u1_s) + u1_logdet + d1_logdet + torch.log(v1_s) + v1_logdet
 
         u2, d2, v2 = self.Hubbard2_svd(A)
         u2_s, u2_logdet = torch.linalg.slogdet(u2)
         d2_logdet = torch.sum(torch.log(d2))
         v2_s, v2_logdet = torch.linalg.slogdet(v2.mH)
-        logdet2 = u2_s + u2_logdet + d2_logdet + v2_s + v2_logdet
+        logdet2 = torch.log(u2_s) + u2_logdet + d2_logdet + torch.log(v2_s) + v2_logdet
 
         return 1.0 / (2 * self.u) * A @ A - logdet1 - logdet2
 
