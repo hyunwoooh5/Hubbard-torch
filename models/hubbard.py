@@ -1354,8 +1354,8 @@ class ImprovedGaussianSpinModel(ImprovedModel):
         for i in range(self.lattice.L**2):
             self.h1[i, i] = self.mu-self.u
             self.h2[i, i] = -self.mu-self.u
-        self.h1 = torch.matrix.exp_(self.h1)
-        self.h2 = torch.matrix.exp_(self.h2)
+        self.h1 = torch.matrix_exp(self.h1)
+        self.h2 = torch.matrix_exp(self.h2)
 
         self.h1_svd = torch.svd(self.h1)
         self.h2_svd = torch.svd(self.h2)
