@@ -187,7 +187,7 @@ if __name__ == '__main__':
             Seff = model.action(xt) - logdet
             return Seff
     '''
-
+    
     def Seff(x):
         j = torch.autograd.functional.jacobian(contour, x)  # need to check
         s, logdet = torch.linalg.slogdet(j)
@@ -281,6 +281,9 @@ if __name__ == '__main__':
                 for l in range(args.nstochastic):
                     chain.step(N=skip)
                     grads.append(Seff(chain.x).real)
+
+                # Issue for calculating grad with SVD
+                # https://github.com/pytorch/pytorch/blob/main/torch/csrc/autograd/FunctionsManual.cpp#L3386
 
                 grad = torch.mean(torch.stack(grads), axis=0)
                 grad.backward()
